@@ -1,7 +1,7 @@
 const { writeFileSync } = require('fs');
 const { join } = require('path');
 const fetch = require('node-fetch');
-const blend = require('@mapbox/blend');
+const blend = require('util').promisify(require('@mapbox/blend'));
 const argv = require('minimist')(process.argv.slice(2));
 
 const logError = require('./errorLogger');
@@ -12,13 +12,13 @@ const {
   width = 400,
   height = 500,
   color = 'Pink',
-  size = 100,
+  size = 100
 } = argv;
 
 // An array of URLs allow for varying number of images to be stitched
 const urls = [
   `https://cataas.com/cat/says/${greeting}?width=${width}&height=${height}&color${color}&s=${size}`,
-  `https://cataas.com/cat/says/${who}?width=${width}&height=${height}&color${color}&s=${size}`,
+  `https://cataas.com/cat/says/${who}?width=${width}&height=${height}&color${color}&s=${size}`
 ];
 
 // HTTP request helper method returns a promise
@@ -60,7 +60,7 @@ const makeGetRequest = (url) => {
     return {
       buffer,
       x: index * width,
-      y: 0,
+      y: 0
     };
   });
 
@@ -69,27 +69,28 @@ const makeGetRequest = (url) => {
   const options = {
     width: width * imageData.length + 1,
     height: height,
-    format: 'jpeg',
+    format: 'jpeg'
   };
 
   // The blend method (stitch images)
-  blend(imageData, options, async (err, result) => {
-    if (err) {
-      logError('Stitching the image', err);
-      return;
-    }
-
-    // Define the output file name and path
-    const fileOut = join(process.cwd(), `cat-card.jpg`);
-    try {
-      // Use a promise with "writeFileSync" with no callbacks
-      await writeFileSync(fileOut, result);
-    } catch (err) {
-      logError('Creating output file', err);
-      return;
-    }
-
-    console.log('The file was saved!');
+  let result;
+  try {
+    result = await blend(imageData, options);
+  } catch (err) {
+    logError('Stitching the image', err);
     return;
-  });
+  }
+
+  // Define the output file name and path
+  const fileOut = join(process.cwd(), `cat-card.jpg`);
+  try {
+    // Use a promise with "writeFileSync" with no callbacks
+    await writeFileSync(fileOut, result);
+  } catch (err) {
+    logError('Creating output file', err);
+    return;
+  }
+
+  console.log('The file was saved!');
+  return;
 })();
